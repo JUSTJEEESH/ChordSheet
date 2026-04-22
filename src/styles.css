@@ -1,0 +1,435 @@
+:root {
+  --bg: #0f0e0c;
+  --surface: #1a1815;
+  --surface-2: #232019;
+  --border: #2e2a22;
+  --text: #e8e3d8;
+  --muted: #8a8578;
+  --gold: #d4a843;
+  --gold-dim: #a88533;
+  --teal: #7ecbbd;
+  --danger: #b85a4a;
+  --serif: 'Playfair Display', Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+button:hover {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+button.primary {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #1a1408;
+  font-weight: 600;
+}
+button.primary:hover {
+  background: #e5b94e;
+  color: #1a1408;
+}
+button.ghost {
+  background: transparent;
+}
+button.danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+input,
+select,
+textarea {
+  font-family: var(--sans);
+  font-size: 13px;
+  background: #0a0907;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.12s ease;
+  width: 100%;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--gold-dim);
+}
+input.mono,
+textarea.mono {
+  font-family: var(--mono);
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 32px 80px;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+  margin-bottom: 28px;
+}
+.app-header h1 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 28px;
+  margin: 0;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+.app-header h1 .accent {
+  color: var(--gold);
+}
+.app-header .tagline {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 18px;
+  margin-bottom: 20px;
+}
+
+.card-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr;
+  gap: 12px;
+}
+.meta-grid .field-wide {
+  grid-column: span 2;
+}
+.field label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.spotify-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 6px;
+}
+.spotify-row input {
+  flex: 1;
+}
+.spotify-status {
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-top: 6px;
+  min-height: 14px;
+}
+.spotify-status.ok {
+  color: var(--teal);
+}
+.spotify-status.err {
+  color: var(--danger);
+}
+.spotify-status.loading {
+  color: var(--muted);
+}
+
+/* Sections */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: 6px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.section-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.section-type {
+  min-width: 140px;
+  width: auto;
+}
+.section-custom {
+  max-width: 200px;
+}
+.section-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.line {
+  margin-bottom: 10px;
+  border-left: 1px solid var(--border);
+  padding-left: 12px;
+  position: relative;
+}
+.line-chords input {
+  font-family: var(--mono);
+  color: var(--gold);
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  padding: 3px 0;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+.line-chords input:focus {
+  border-bottom-color: var(--gold-dim);
+}
+.line-lyrics input {
+  font-family: var(--sans);
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  padding: 3px 0;
+  font-size: 14px;
+}
+.line-lyrics input:focus {
+  border-bottom-color: var(--border);
+}
+.line-remove {
+  position: absolute;
+  right: 0;
+  top: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.line:hover .line-remove {
+  opacity: 1;
+}
+
+.add-line {
+  margin-top: 6px;
+}
+
+.add-section-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* Modal / textarea for UG export */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal h2 {
+  font-family: var(--serif);
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+.modal textarea {
+  flex: 1;
+  min-height: 360px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  background: #0a0907;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* Print view */
+.print-view {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 0.6in;
+  }
+  body,
+  html,
+  #root {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .app-header,
+  .toolbar,
+  .card.meta,
+  .card.spotify,
+  .section-actions,
+  .line-remove,
+  .add-line,
+  .add-section-row,
+  .editor-view {
+    display: none !important;
+  }
+  .print-view {
+    display: block !important;
+    font-family: 'IBM Plex Sans', Georgia, serif;
+    color: #000;
+  }
+  .print-header {
+    border-bottom: 2px solid #000;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+  }
+  .print-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .print-artist {
+    font-size: 14px;
+    font-style: italic;
+    margin: 0 0 10px;
+  }
+  .print-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #333;
+  }
+  .print-meta span {
+    margin-right: 18px;
+  }
+  .print-section {
+    margin-bottom: 18px;
+    page-break-inside: avoid;
+    padding-left: 10px;
+    border-left: 3px solid #d4a843;
+  }
+  .print-section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #333;
+    margin-bottom: 6px;
+  }
+  .print-line {
+    margin-bottom: 6px;
+  }
+  .print-chords {
+    font-family: 'IBM Plex Mono', monospace;
+    color: #b8791a;
+    font-weight: 600;
+    white-space: pre;
+    font-size: 13px;
+    line-height: 1.2;
+    min-height: 1em;
+  }
+  .print-lyrics {
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: #000;
+    white-space: pre;
+    font-size: 13px;
+    line-height: 1.3;
+    min-height: 1em;
+  }
+}
+
+/* Utility */
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.spacer {
+  flex: 1;
+}
+.hint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
