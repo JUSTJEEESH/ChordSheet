@@ -433,3 +433,110 @@ textarea.mono {
   font-size: 11px;
   color: var(--muted);
 }
+.muted {
+  color: var(--muted);
+}
+
+.toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* Header current-song status */
+.song-status {
+  text-align: right;
+  max-width: 50%;
+}
+.song-status-title {
+  font-family: var(--serif);
+  font-size: 16px;
+  color: var(--text);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.song-status-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* Library modal song list */
+.song-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 200px;
+  max-height: 55vh;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #0a0907;
+}
+.song-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+.song-item:last-child {
+  border-bottom: none;
+}
+.song-item.current {
+  background: rgba(212, 168, 67, 0.06);
+  border-left: 3px solid var(--gold);
+  padding-left: 9px;
+}
+.song-item-main {
+  flex: 1;
+  cursor: pointer;
+  min-width: 0;
+}
+.song-item-main:hover .song-item-title {
+  color: var(--gold);
+}
+.song-item-title {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.12s ease;
+}
+.song-item-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.song-item-date {
+  opacity: 0.7;
+}
+.song-item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.button-like {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: inline-block;
+  transition: all 0.12s ease;
+}
+.button-like:hover {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
