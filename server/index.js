@@ -74,6 +74,57 @@ function parseJsonLdArtists(html) {
   return results;
 }
 
+function parseNextDataArtists(html) {
+  // Spotify's embed page ships a `__NEXT_DATA__` JSON blob containing the full
+  // track info. Structure varies by Spotify build, so we parse the JSON and
+  // deep-search for any `artists` array with `{ name }` objects. We also
+  // capture a few interesting scalar fields for debugging.
+  const m = html.match(
+    /<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i
+  );
+  if (!m) return { artists: [], subtitle: '', trackName: '' };
+  let data;
+  try {
+    data = JSON.parse(m[1]);
+  } catch (e) {
+    return { artists: [], subtitle: '', trackName: '', parseError: String(e && e.message) };
+  }
+
+  const artists = [];
+  let subtitle = '';
+  let trackName = '';
+
+  const visit = (node, depth) => {
+    if (!node || depth > 12) return;
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, depth + 1);
+      return;
+    }
+    if (typeof node !== 'object') return;
+
+    // Spotify embed data commonly has a `subtitle` field == "Artist Name".
+    if (!subtitle && typeof node.subtitle === 'string' && node.subtitle.trim()) {
+      subtitle = node.subtitle.trim();
+    }
+    if (!trackName && typeof node.title === 'string' && node.title.trim() && node.type === 'track') {
+      trackName = node.title.trim();
+    }
+    if (Array.isArray(node.artists)) {
+      for (const a of node.artists) {
+        if (a && typeof a === 'object' && typeof a.name === 'string' && a.name.trim()) {
+          if (!artists.includes(a.name.trim())) artists.push(a.name.trim());
+        }
+      }
+    }
+    for (const key of Object.keys(node)) {
+      visit(node[key], depth + 1);
+    }
+  };
+
+  visit(data, 0);
+  return { artists, subtitle, trackName };
+}
+
 function looksLikeYear(s) {
   return /^\d{4}$/.test(s.trim());
 }
@@ -150,45 +201,76 @@ app.get('/api/spotify', async (req, res) => {
     const title = oembed.title || '';
 
     let artist = '';
+
+    // Primary source: the /embed/track/<id> page. Unlike the SPA /track/<id>
+    // page, the embed page is server-rendered and contains a __NEXT_DATA__
+    // JSON blob with artist info.
     try {
-      const pageUrl = `https://open.spotify.com/track/${trackId}`;
-      const pageRes = await fetch(pageUrl, {
+      const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
+      const embedRes = await fetch(embedUrl, {
         headers: {
           'User-Agent': browserUA,
           'Accept-Language': 'en-US,en;q=0.9',
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
       });
-      debug.pageStatus = pageRes.status;
-      if (pageRes.ok) {
-        const html = await pageRes.text();
+      debug.embedStatus = embedRes.status;
+      if (embedRes.ok) {
+        const html = await embedRes.text();
+        const nd = parseNextDataArtists(html);
+        debug.embedNextDataArtists = nd.artists;
+        debug.embedSubtitle = nd.subtitle;
+        debug.embedTrackName = nd.trackName;
+        if (nd.parseError) debug.embedParseError = nd.parseError;
 
-        const ogDescription = parseMeta(html, 'og:description');
-        const twitterDescription = parseMeta(html, 'twitter:description');
-        const ogTitle = parseMeta(html, 'og:title');
-        const titleTag = parseTitleTag(html);
-        const ogAudioArtist = parseMeta(html, 'og:audio:artist');
-        const musicMusician = parseMeta(html, 'music:musician_description');
-        const jsonLdArtists = parseJsonLdArtists(html);
-
-        debug.ogDescription = ogDescription;
-        debug.twitterDescription = twitterDescription;
-        debug.ogTitle = ogTitle;
-        debug.titleTag = titleTag;
-        debug.ogAudioArtist = ogAudioArtist;
-        debug.musicMusician = musicMusician;
-        debug.jsonLdArtists = jsonLdArtists;
-
-        // Strategy: try most reliable sources first.
-        if (!artist && jsonLdArtists.length > 0) artist = jsonLdArtists.join(', ');
-        if (!artist && ogAudioArtist) artist = ogAudioArtist;
-        if (!artist && musicMusician) artist = musicMusician;
-        if (!artist && ogDescription) artist = extractArtistFromDescription(ogDescription);
-        if (!artist && twitterDescription) artist = extractArtistFromDescription(twitterDescription);
-        if (!artist && titleTag) artist = extractArtistFromTitleTag(titleTag);
+        if (nd.artists.length > 0) artist = nd.artists.join(', ');
+        // subtitle on the embed page is commonly "Artist Name" as a scalar;
+        // use it only as a fallback when no structured artists array was found.
+        if (!artist && nd.subtitle) artist = nd.subtitle;
       }
     } catch (err) {
-      debug.pageError = String(err && err.message ? err.message : err);
+      debug.embedError = String(err && err.message ? err.message : err);
+    }
+
+    // Fallback: scrape the SPA page in case Spotify starts server-rendering
+    // meta tags there again. (Currently it doesn't, but this is cheap.)
+    if (!artist) {
+      try {
+        const pageUrl = `https://open.spotify.com/track/${trackId}`;
+        const pageRes = await fetch(pageUrl, {
+          headers: {
+            'User-Agent': browserUA,
+            'Accept-Language': 'en-US,en;q=0.9',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+        });
+        debug.pageStatus = pageRes.status;
+        if (pageRes.ok) {
+          const html = await pageRes.text();
+          const ogDescription = parseMeta(html, 'og:description');
+          const twitterDescription = parseMeta(html, 'twitter:description');
+          const titleTag = parseTitleTag(html);
+          const ogAudioArtist = parseMeta(html, 'og:audio:artist');
+          const musicMusician = parseMeta(html, 'music:musician_description');
+          const jsonLdArtists = parseJsonLdArtists(html);
+
+          debug.ogDescription = ogDescription;
+          debug.twitterDescription = twitterDescription;
+          debug.titleTag = titleTag;
+          debug.ogAudioArtist = ogAudioArtist;
+          debug.musicMusician = musicMusician;
+          debug.jsonLdArtists = jsonLdArtists;
+
+          if (!artist && jsonLdArtists.length > 0) artist = jsonLdArtists.join(', ');
+          if (!artist && ogAudioArtist) artist = ogAudioArtist;
+          if (!artist && musicMusician) artist = musicMusician;
+          if (!artist && ogDescription) artist = extractArtistFromDescription(ogDescription);
+          if (!artist && twitterDescription) artist = extractArtistFromDescription(twitterDescription);
+          if (!artist && titleTag) artist = extractArtistFromTitleTag(titleTag);
+        }
+      } catch (err) {
+        debug.pageError = String(err && err.message ? err.message : err);
+      }
     }
 
     // Log server-side for easy debugging if parsing ever regresses.
