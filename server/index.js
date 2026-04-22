@@ -282,6 +282,58 @@ app.get('/api/spotify', async (req, res) => {
   }
 });
 
+// ---- Lyrics proxy (LRCLib) ---------------------------------------------
+// LRCLib is a free, public, community-maintained lyrics database. No API key.
+// Docs: https://lrclib.net/docs
+app.get('/api/lyrics', async (req, res) => {
+  const title = (req.query.title || '').toString().trim();
+  const artist = (req.query.artist || '').toString().trim();
+  if (!title) return res.status(400).json({ error: 'Missing title' });
+
+  const ua = {
+    'User-Agent': 'ChordSheet/1.0 (https://github.com/justjeeesh/chordsheet)',
+    Accept: 'application/json',
+  };
+
+  try {
+    // Try the exact-match endpoint first (best quality).
+    let hit = null;
+    if (artist) {
+      const getUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(
+        title
+      )}&artist_name=${encodeURIComponent(artist)}`;
+      const r = await fetch(getUrl, { headers: ua });
+      if (r.ok) hit = await r.json();
+    }
+
+    // Fall back to search — returns an array; pick best scoring match.
+    if (!hit) {
+      const q = artist ? `${title} ${artist}` : title;
+      const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(q)}`;
+      const r = await fetch(searchUrl, { headers: ua });
+      if (r.ok) {
+        const results = await r.json();
+        if (Array.isArray(results) && results.length > 0) hit = results[0];
+      }
+    }
+
+    if (!hit || (!hit.plainLyrics && !hit.syncedLyrics)) {
+      return res.status(404).json({ error: 'No lyrics found' });
+    }
+
+    res.json({
+      plainLyrics: hit.plainLyrics || '',
+      syncedLyrics: hit.syncedLyrics || '',
+      trackName: hit.trackName || hit.name || '',
+      artistName: hit.artistName || '',
+      albumName: hit.albumName || '',
+      source: 'lrclib',
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err && err.message ? err.message : err) });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`[chordsheet] server listening on http://localhost:${PORT}`);
 });
