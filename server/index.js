@@ -28,6 +28,7 @@ function parseMeta(html, property) {
     new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']+)["']`, 'i'),
     new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${property}["']`, 'i'),
     new RegExp(`<meta[^>]+name=["']${property}["'][^>]+content=["']([^"']+)["']`, 'i'),
+    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+name=["']${property}["']`, 'i'),
   ];
   for (const re of patterns) {
     const m = html.match(re);
@@ -36,24 +37,89 @@ function parseMeta(html, property) {
   return '';
 }
 
+function parseTitleTag(html) {
+  const m = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  return m ? decodeHtmlEntities(m[1]).trim() : '';
+}
+
+function parseJsonLdArtists(html) {
+  const results = [];
+  const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+  while ((match = re.exec(html)) !== null) {
+    const raw = match[1].trim();
+    try {
+      const data = JSON.parse(raw);
+      const nodes = Array.isArray(data) ? data : [data];
+      for (const node of nodes) {
+        if (!node || typeof node !== 'object') continue;
+        const by = node.byArtist;
+        if (by) {
+          if (Array.isArray(by)) {
+            by.forEach((a) => a && a.name && results.push(String(a.name)));
+          } else if (by.name) {
+            results.push(String(by.name));
+          }
+        }
+        if (node.artist) {
+          const a = node.artist;
+          if (Array.isArray(a)) a.forEach((x) => x && x.name && results.push(String(x.name)));
+          else if (a.name) results.push(String(a.name));
+        }
+      }
+    } catch (e) {
+      // skip unparsable block
+    }
+  }
+  return results;
+}
+
+function looksLikeYear(s) {
+  return /^\d{4}$/.test(s.trim());
+}
+
 function extractArtistFromDescription(desc) {
   if (!desc) return '';
-  // og:description patterns seen on Spotify:
-  //   "Listen to <Track> on Spotify. <Artist> · Song · YYYY"
-  //   "<Artist> · Song · <Track> · YYYY"
-  // We'll try a few patterns.
-  const byMatch = desc.match(/ by ([^.·|]+?)(?:\.|·|$)/i);
-  if (byMatch) return byMatch[1].trim();
+  // Strip the common "Listen to <Title> on Spotify." lead-in so the rest parses cleanly.
+  let clean = desc.trim().replace(/^Listen to .*? on Spotify\.?\s*/i, '').trim();
 
-  // Spotify commonly uses " · Song · " so the artist is the token before " · Song"
-  const songIdx = desc.indexOf('· Song');
-  if (songIdx > 0) {
-    const before = desc.slice(0, songIdx).trim();
-    // Take the last chunk separated by " · " or period — often it's just the artist
-    const parts = before.split(/·|\. /).map((s) => s.trim()).filter(Boolean);
-    if (parts.length) return parts[parts.length - 1];
+  // Pattern: "Song · YYYY · Artist" / "Artist · Song · YYYY" / "Artist · Song"
+  if (clean.includes('·')) {
+    const parts = clean.split('·').map((s) => s.trim()).filter(Boolean);
+    const filtered = parts.filter(
+      (p) =>
+        !/^song$/i.test(p) &&
+        !/^single$/i.test(p) &&
+        !/^album$/i.test(p) &&
+        !/^ep$/i.test(p) &&
+        !looksLikeYear(p) &&
+        !/^spotify$/i.test(p)
+    );
+    if (filtered.length === 1) return filtered[0];
+    if (filtered.length > 1) return filtered[filtered.length - 1];
   }
 
+  // Pattern: "... by Artist Name" / "song by Artist Name"
+  const byMatch = clean.match(/\bby\s+([^.·|•\-–—]+?)(?:\.|·|\||$)/i);
+  if (byMatch) return byMatch[1].trim();
+
+  return '';
+}
+
+function extractArtistFromTitleTag(titleTag) {
+  if (!titleTag) return '';
+  // e.g. "Clown in a Barrel - song and lyrics by Barrett Baber | Spotify"
+  //      "Song Name - Artist Name | Spotify"
+  const byMatch = titleTag.match(/\bby\s+([^.·|•]+?)(?:\||$)/i);
+  if (byMatch) return byMatch[1].trim();
+
+  const dashMatch = titleTag.match(/^\s*[^-–—]+?\s*[-–—]\s*([^|]+?)\s*\|/);
+  if (dashMatch) {
+    const mid = dashMatch[1].trim();
+    // Strip leading "song and lyrics by" etc.
+    const cleaned = mid.replace(/^song and lyrics by\s+/i, '').replace(/^by\s+/i, '').trim();
+    return cleaned;
+  }
   return '';
 }
 
@@ -68,15 +134,14 @@ app.get('/api/spotify', async (req, res) => {
     return res.status(400).json({ error: 'Invalid Spotify track URL' });
   }
 
+  const debug = {};
+
   try {
     const browserUA =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
     const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`;
     const oembedRes = await fetch(oembedUrl, {
-      headers: {
-        'User-Agent': browserUA,
-        Accept: 'application/json',
-      },
+      headers: { 'User-Agent': browserUA, Accept: 'application/json' },
     });
     if (!oembedRes.ok) {
       return res.status(502).json({ error: `Spotify oEmbed failed: ${oembedRes.status}` });
@@ -84,7 +149,6 @@ app.get('/api/spotify', async (req, res) => {
     const oembed = await oembedRes.json();
     const title = oembed.title || '';
 
-    // Secondary fetch for artist from track page HTML meta tags
     let artist = '';
     try {
       const pageUrl = `https://open.spotify.com/track/${trackId}`;
@@ -92,28 +156,45 @@ app.get('/api/spotify', async (req, res) => {
         headers: {
           'User-Agent': browserUA,
           'Accept-Language': 'en-US,en;q=0.9',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
       });
+      debug.pageStatus = pageRes.status;
       if (pageRes.ok) {
         const html = await pageRes.text();
-        const description = parseMeta(html, 'og:description');
-        artist = extractArtistFromDescription(description);
 
-        // Fallback: look for music:musician or similar
-        if (!artist) {
-          const musician = parseMeta(html, 'music:musician_description');
-          if (musician) artist = musician;
-        }
-        if (!artist) {
-          const twitter = parseMeta(html, 'twitter:description');
-          artist = extractArtistFromDescription(twitter);
-        }
+        const ogDescription = parseMeta(html, 'og:description');
+        const twitterDescription = parseMeta(html, 'twitter:description');
+        const ogTitle = parseMeta(html, 'og:title');
+        const titleTag = parseTitleTag(html);
+        const ogAudioArtist = parseMeta(html, 'og:audio:artist');
+        const musicMusician = parseMeta(html, 'music:musician_description');
+        const jsonLdArtists = parseJsonLdArtists(html);
+
+        debug.ogDescription = ogDescription;
+        debug.twitterDescription = twitterDescription;
+        debug.ogTitle = ogTitle;
+        debug.titleTag = titleTag;
+        debug.ogAudioArtist = ogAudioArtist;
+        debug.musicMusician = musicMusician;
+        debug.jsonLdArtists = jsonLdArtists;
+
+        // Strategy: try most reliable sources first.
+        if (!artist && jsonLdArtists.length > 0) artist = jsonLdArtists.join(', ');
+        if (!artist && ogAudioArtist) artist = ogAudioArtist;
+        if (!artist && musicMusician) artist = musicMusician;
+        if (!artist && ogDescription) artist = extractArtistFromDescription(ogDescription);
+        if (!artist && twitterDescription) artist = extractArtistFromDescription(twitterDescription);
+        if (!artist && titleTag) artist = extractArtistFromTitleTag(titleTag);
       }
     } catch (err) {
-      // swallow — artist is best-effort
+      debug.pageError = String(err && err.message ? err.message : err);
     }
 
-    res.json({ title, artist, trackId });
+    // Log server-side for easy debugging if parsing ever regresses.
+    console.log('[spotify]', { trackId, title, artist, debug });
+
+    res.json({ title, artist, trackId, debug });
   } catch (err) {
     res.status(500).json({ error: String(err && err.message ? err.message : err) });
   }
