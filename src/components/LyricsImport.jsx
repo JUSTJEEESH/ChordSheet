@@ -26,7 +26,10 @@ export default function LyricsImport({ title, artist, onImport }) {
         msg: `Imported ${sections.length} section${sections.length === 1 ? '' : 's'} · ${totalLines} line${totalLines === 1 ? '' : 's'}. Now add chords above the lyrics.`,
       });
     } catch (err) {
-      setStatus({ kind: 'err', msg: `Error: ${err.message}` });
+      const msg = /no lyrics found|404/i.test(err.message)
+        ? 'LRCLib doesn\'t have this song. Try the "Paste Chord Chart" card above if you have the chart from another site, or type the lyrics in manually.'
+        : `Error: ${err.message}`;
+      setStatus({ kind: 'err', msg });
     }
   };
 
@@ -37,7 +40,7 @@ export default function LyricsImport({ title, artist, onImport }) {
           Import Lyrics
         </button>
         <span className="hint">
-          Free lookup via LRCLib. Fills sections with lyric lines — you add the chords.
+          LRCLib (free, community-maintained). Coverage is hit-or-miss — major-label tracks are often missing.
         </span>
       </div>
       <div className={`spotify-status ${status.kind}`}>{status.msg}</div>

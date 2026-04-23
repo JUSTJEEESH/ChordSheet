@@ -6,6 +6,7 @@ import PrintView from './components/PrintView.jsx';
 import UGExportModal from './components/UGExportModal.jsx';
 import LibraryModal from './components/LibraryModal.jsx';
 import LyricsImport from './components/LyricsImport.jsx';
+import PasteChart from './components/PasteChart.jsx';
 import { SECTION_TYPES, newSection, newLine } from './lib/model.js';
 import { toUltimateGuitar } from './lib/ugExport.js';
 import {
@@ -147,16 +148,37 @@ export default function App() {
     setLibraryOpen(false);
   };
 
-  const handleLyricsImport = (importedSections) => {
-    // Replace current sections only if they're effectively empty (default scaffold).
-    const hasRealContent = sections.some((s) =>
+  const hasRealContent = () =>
+    sections.some((s) =>
       s.lines.some((l) => (l.chords && l.chords.trim()) || (l.lyrics && l.lyrics.trim()))
     );
+
+  const handleLyricsImport = (importedSections) => {
     const prepared = importedSections.map((s) => normalizeSection(s));
-    if (hasRealContent) {
+    if (hasRealContent()) {
       setSections((prev) => [...prev, ...prepared]);
     } else {
       setSections(prepared.length ? prepared : blankDoc().sections);
+    }
+  };
+
+  const handleChartPasteImport = (parsed) => {
+    const prepared = parsed.sections.map(normalizeSection);
+    if (hasRealContent()) {
+      // Ask rather than silently clobber existing work.
+      const replace = confirm(
+        'You already have content. Click OK to REPLACE it with the pasted chart, or Cancel to APPEND the pasted sections.'
+      );
+      if (replace) {
+        setSections(prepared);
+      } else {
+        setSections((prev) => [...prev, ...prepared]);
+      }
+    } else {
+      setSections(prepared);
+    }
+    if (parsed.meta && Object.keys(parsed.meta).length > 0) {
+      setMeta((m) => ({ ...m, ...parsed.meta }));
     }
   };
 
@@ -218,7 +240,12 @@ export default function App() {
         </div>
 
         <div className="card">
-          <div className="card-title">Lyrics Import</div>
+          <div className="card-title">Paste Chord Chart</div>
+          <PasteChart onImport={handleChartPasteImport} />
+        </div>
+
+        <div className="card">
+          <div className="card-title">Lyrics Import (fallback)</div>
           <LyricsImport title={meta.title} artist={meta.artist} onImport={handleLyricsImport} />
         </div>
 
