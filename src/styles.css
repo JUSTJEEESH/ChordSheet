@@ -540,3 +540,42 @@ textarea.mono {
   border-color: var(--gold-dim);
   color: var(--gold);
 }
+
+/* Paste chart preview */
+.chart-preview {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: rgba(126, 203, 189, 0.04);
+}
+.chart-preview-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 6px;
+}
+.chart-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chart-preview-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--gold);
+}

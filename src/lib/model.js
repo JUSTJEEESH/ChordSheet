@@ -4,6 +4,7 @@ export const SECTION_TYPES = [
   'Pre-Chorus',
   'Chorus',
   'Bridge',
+  'Interlude',
   'Outro',
   'Solo',
   'Break',
